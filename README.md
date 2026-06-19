@@ -6,6 +6,9 @@
 
 ---
 
+https://project-akhir-kelompok-7.streamlit.app/
+
+
 ## Identitas Kelompok
 
 | Keterangan     | Isi                         |
@@ -343,6 +346,10 @@ Fitur pada tab ini:
 Tab ini digunakan untuk menampilkan laporan lengkap hasil perbandingan.
 
 <img width="1117" height="737" alt="laporan" src="https://github.com/user-attachments/assets/9a552651-c5cd-4d50-aba9-a9fa6a456a42" />
+
+
+
+<img width="920" height="738" alt="laporan2" src="https://github.com/user-attachments/assets/366d8476-5452-4d50-a355-2cace8077b1f" />
 
 
 Isi laporan meliputi:

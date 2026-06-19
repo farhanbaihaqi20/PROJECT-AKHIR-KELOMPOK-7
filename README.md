@@ -225,6 +225,10 @@ Aplikasi memiliki tiga tab utama:
 
 Tab ini digunakan untuk memilih dua gambar wajah yang akan dibandingkan.
 
+
+<img width="1600" height="736" alt="input" src="https://github.com/user-attachments/assets/a8917a08-6b58-4168-83a8-14e16230a29a" />
+
+
 Fitur pada tab ini:
 
 * Tombol pilih file untuk Gambar 1.
@@ -237,6 +241,10 @@ Fitur pada tab ini:
 ### 2. Tab Hasil Perbandingan
 
 Tab ini digunakan untuk menampilkan hasil visual dari proses deteksi wajah.
+
+
+<img width="1600" height="792" alt="hasil" src="https://github.com/user-attachments/assets/63cd68e3-630b-49fc-a1be-0a7030948d69" />
+
 
 Fitur pada tab ini:
 
@@ -251,6 +259,10 @@ Fitur pada tab ini:
 ### 3. Tab Laporan
 
 Tab ini digunakan untuk menampilkan laporan lengkap hasil perbandingan.
+
+
+<img width="1600" height="806" alt="laporan" src="https://github.com/user-attachments/assets/71fcaa0b-1dc3-44dd-ba33-d9e60feb9060" />
+
 
 Isi laporan meliputi:
 

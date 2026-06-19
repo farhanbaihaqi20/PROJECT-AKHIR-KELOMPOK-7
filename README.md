@@ -32,7 +32,7 @@
 
 ## Deskripsi Proyek
 
-Proyek ini merupakan aplikasi sederhana berbasis Python yang digunakan untuk membandingkan dua gambar wajah. Aplikasi ini dibuat dengan tampilan GUI menggunakan Tkinter sehingga pengguna dapat memilih dua file gambar secara langsung dari komputer.
+Proyek ini merupakan aplikasi sederhana berbasis Python yang digunakan untuk membandingkan dua gambar wajah. Aplikasi ini dibuat dengan tampilan GUI menggunakan Streamlit sehingga pengguna dapat memilih dua file gambar secara langsung dari komputer.
 
 Program akan mendeteksi wajah pada masing-masing gambar, memotong area wajah yang terdeteksi, mengubahnya ke bentuk grayscale, menyamakan ukuran wajah menjadi 200 x 200 piksel, lalu membandingkan wajah menggunakan metode **LBPH Face Recognizer**.
 
@@ -288,7 +288,7 @@ Program ini menggunakan beberapa library Python, yaitu:
 
 | Library | Fungsi                                                  |
 | ------- | ------------------------------------------------------- |
-| Tkinter | Membuat tampilan GUI aplikasi                           |
+| Streamlit | Membuat tampilan GUI aplikasi                           |
 | OpenCV  | Membaca gambar, deteksi wajah, dan LBPH Face Recognizer |
 | NumPy   | Mengolah data numerik dan array                         |
 | Pillow  | Menampilkan dan menyesuaikan gambar pada GUI            |
@@ -324,7 +324,7 @@ Jika hanya menginstall `opencv-python`, kemungkinan program akan error karena `c
 3. Jalankan program dengan perintah:
 
 ```bash
-python ProjectAljabarLinear.py
+python app.py
 ```
 
 4. Pilih Gambar 1.

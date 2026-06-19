@@ -351,9 +351,8 @@ def buat_teks_laporan(hasil):
     teks_psnr_2 = "Tidak terbatas" if np.isinf(psnr_2) else f"{psnr_2:.2f} dB"
 
     laporan = f"""
-============================================================
+    
              LAPORAN HASIL PERBANDINGAN WAJAH
-============================================================
 
 ✓ Nama File 1
   {hasil['nama_file_1']}
@@ -376,28 +375,6 @@ def buat_teks_laporan(hasil):
 ✓ Waktu Proses
   {hasil['waktu_proses']:.4f} detik
 
-✓ Tahapan Preprocessing
-  1. Membaca gambar dari file upload.
-  2. Mengubah gambar menjadi grayscale.
-  3. Mendeteksi wajah menggunakan Haar Cascade.
-  4. Menghitung jumlah wajah yang terdeteksi.
-  5. Memilih wajah terbesar sebagai wajah utama.
-  6. Memotong area wajah yang terdeteksi.
-  7. Mengubah ukuran wajah menjadi {UKURAN_WAJAH[0]} x {UKURAN_WAJAH[1]} pixel.
-  8. Melakukan histogram equalization agar pencahayaan lebih seimbang.
-  9. Mengubah matriks wajah menjadi vektor fitur.
- 10. Menggunakan PCA untuk ekstraksi fitur utama dan perbandingan kemiripan.
-
-✓ Metode yang Digunakan
-  Haar Cascade Face Detection + PCA (Principal Component Analysis)
-
-✓ Implementasi Aljabar Linear pada PCA
-  1. Citra wajah grayscale direpresentasikan sebagai matriks piksel.
-  2. Matriks wajah berukuran {UKURAN_WAJAH[0]} x {UKURAN_WAJAH[1]} diubah menjadi vektor berdimensi {UKURAN_WAJAH[0] * UKURAN_WAJAH[1]}.
-  3. Data wajah dikurangi nilai rata-rata agar berada pada pusat data.
-  4. PCA dihitung menggunakan SVD yang berkaitan dengan eigenvector dan eigenvalue dari matriks kovarians.
-  5. Wajah diproyeksikan ke ruang komponen utama.
-  6. Jarak antar fitur PCA digunakan untuk menentukan tingkat kemiripan wajah.
 
 ✓ PCA untuk Kompresi Gambar
   Jumlah komponen kompresi : {KOMPONEN_PCA_KOMPRESI}
@@ -432,12 +409,6 @@ def buat_teks_laporan(hasil):
 ✓ Kesimpulan Akhir
   {kesimpulan}
 
-============================================================
-Catatan:
-Semakin kecil nilai jarak PCA, maka semakin mirip wajah
-ketika dibandingkan. Sebaliknya, semakin besar nilai jarak PCA,
-maka semakin besar perbedaan antara kedua wajah.
-============================================================
 """
     return laporan.strip()
 

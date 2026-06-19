@@ -8,11 +8,13 @@ from PIL import Image, ImageOps
 
 
 UKURAN_WAJAH = (200, 200)
-BATAS_BEDA = 70
+BATAS_BEDA = 35
+KOMPONEN_PCA_KEMIRIPAN = 1
+KOMPONEN_PCA_KOMPRESI = 40
 
 
 st.set_page_config(
-    page_title="Perbandingan Wajah LBPH",
+    page_title="Perbandingan Wajah PCA",
     page_icon="🧠",
     layout="wide",
 )
@@ -102,12 +104,12 @@ def format_ukuran_file(byte_size):
         return f"{byte_size / (1024 * 1024):.2f} MB"
 
 
-def kategori_kemiripan(confidence):
-    if confidence <= 50:
+def kategori_kemiripan(jarak_pca):
+    if jarak_pca <= 20:
         return "Kemiripan Tinggi"
-    elif confidence <= BATAS_BEDA:
+    elif jarak_pca <= BATAS_BEDA:
         return "Kemiripan Sedang"
-    elif confidence <= 90:
+    elif jarak_pca <= 50:
         return "Kemiripan Rendah"
     else:
         return "Kemiripan Sangat Rendah"
@@ -174,6 +176,107 @@ def deteksi_dan_potong_wajah(gambar_bgr):
     return potongan, gambar_kotak, jumlah_wajah, (lebar, tinggi)
 
 
+def pca_similarity(wajah_1, wajah_2):
+    """
+    Menghitung kemiripan wajah menggunakan PCA.
+
+    Alur:
+    1. Wajah 200x200 diubah menjadi vektor 40.000 piksel.
+    2. Dua vektor wajah disusun menjadi matriks data.
+    3. Data dikurangi rata-rata, lalu dihitung PCA dengan SVD.
+    4. Kedua wajah diproyeksikan ke ruang komponen utama.
+    5. Jarak Euclidean pada ruang PCA dinormalisasi menjadi skala 0-100.
+    """
+    vektor_1 = wajah_1.astype(np.float32).reshape(1, -1) / 255.0
+    vektor_2 = wajah_2.astype(np.float32).reshape(1, -1) / 255.0
+
+    data = np.vstack([vektor_1, vektor_2])
+    rata_rata = np.mean(data, axis=0)
+    data_terpusat = data - rata_rata
+
+    if np.allclose(data_terpusat, 0):
+        return {
+            "jarak_pca": 0.0,
+            "skor_mirip": 1.0,
+            "jumlah_komponen": 1,
+            "explained_variance": 1.0,
+            "fitur_1": np.array([0.0]),
+            "fitur_2": np.array([0.0]),
+        }
+
+    # SVD digunakan sebagai implementasi PCA yang stabil secara numerik.
+    # Dalam PCA, komponen utama berkaitan dengan eigenvector dari matriks kovarians.
+    u, singular_values, vt = np.linalg.svd(data_terpusat, full_matrices=False)
+
+    jumlah_komponen = min(KOMPONEN_PCA_KEMIRIPAN, vt.shape[0])
+    komponen_utama = vt[:jumlah_komponen]
+    fitur_pca = data_terpusat @ komponen_utama.T
+
+    jarak = float(np.linalg.norm(fitur_pca[0] - fitur_pca[1]))
+    rmse = jarak / np.sqrt(data.shape[1])
+    jarak_pca = rmse * 100
+    skor_mirip = max(0.0, min(1.0, 1 - jarak_pca / 100))
+
+    total_variance = float(np.sum(singular_values ** 2))
+    if total_variance == 0:
+        explained_variance = 1.0
+    else:
+        explained_variance = float(np.sum(singular_values[:jumlah_komponen] ** 2) / total_variance)
+
+    return {
+        "jarak_pca": jarak_pca,
+        "skor_mirip": skor_mirip,
+        "jumlah_komponen": jumlah_komponen,
+        "explained_variance": explained_variance,
+        "fitur_1": fitur_pca[0],
+        "fitur_2": fitur_pca[1],
+    }
+
+
+def kompresi_gambar_pca(wajah_gray, jumlah_komponen=KOMPONEN_PCA_KOMPRESI):
+    """
+    Kompresi citra wajah menggunakan PCA.
+
+    Citra grayscale 200x200 dianggap sebagai matriks.
+    Baris citra menjadi sampel, kolom citra menjadi fitur.
+    Hanya sejumlah komponen utama yang dipakai untuk merekonstruksi gambar.
+    """
+    matriks = wajah_gray.astype(np.float32) / 255.0
+    rata_rata = np.mean(matriks, axis=0)
+    matriks_terpusat = matriks - rata_rata
+
+    u, singular_values, vt = np.linalg.svd(matriks_terpusat, full_matrices=False)
+
+    k = min(jumlah_komponen, len(singular_values))
+    rekonstruksi = (u[:, :k] @ np.diag(singular_values[:k]) @ vt[:k, :]) + rata_rata
+    rekonstruksi = np.clip(rekonstruksi, 0, 1)
+
+    total_variance = float(np.sum(singular_values ** 2))
+    if total_variance == 0:
+        explained_variance = 1.0
+    else:
+        explained_variance = float(np.sum(singular_values[:k] ** 2) / total_variance)
+
+    original_values = matriks.shape[0] * matriks.shape[1]
+    compressed_values = (matriks.shape[0] * k) + k + (k * matriks.shape[1]) + matriks.shape[1]
+    rasio_kompresi = original_values / compressed_values
+
+    mse = float(np.mean((matriks - rekonstruksi) ** 2))
+    if mse == 0:
+        psnr = float("inf")
+    else:
+        psnr = float(10 * np.log10(1.0 / mse))
+
+    return {
+        "gambar_rekonstruksi": (rekonstruksi * 255).astype(np.uint8),
+        "komponen_kompresi": k,
+        "variance_kompresi": explained_variance,
+        "rasio_kompresi": rasio_kompresi,
+        "mse_rekonstruksi": mse,
+        "psnr_rekonstruksi": psnr,
+    }
+
+
 def bandingkan_wajah(file_1, file_2):
     waktu_mulai = time.perf_counter()
 
@@ -183,23 +286,13 @@ def bandingkan_wajah(file_1, file_2):
     wajah_1, gambar_kotak_1, jumlah_wajah_1, resolusi_1 = deteksi_dan_potong_wajah(gambar_1)
     wajah_2, gambar_kotak_2, jumlah_wajah_2, resolusi_2 = deteksi_dan_potong_wajah(gambar_2)
 
-    if not hasattr(cv2, "face"):
-        raise ValueError(
-            "Modul cv2.face tidak ditemukan. Pastikan requirements.txt memakai opencv-contrib-python-headless."
-        )
+    hasil_pca = pca_similarity(wajah_1, wajah_2)
+    kompresi_1 = kompresi_gambar_pca(wajah_1)
+    kompresi_2 = kompresi_gambar_pca(wajah_2)
 
-    recognizer = cv2.face.LBPHFaceRecognizer_create(
-        radius=1,
-        neighbors=8,
-        grid_x=8,
-        grid_y=8,
-    )
-
-    recognizer.train([wajah_1], np.array([1]))
-    label_hasil, confidence = recognizer.predict(wajah_2)
-
-    orang_sama = confidence <= BATAS_BEDA
-    skor_mirip = max(0, min(1, 1 - confidence / 100))
+    jarak_pca = hasil_pca["jarak_pca"]
+    skor_mirip = hasil_pca["skor_mirip"]
+    orang_sama = jarak_pca <= BATAS_BEDA
 
     waktu_selesai = time.perf_counter()
     waktu_proses = waktu_selesai - waktu_mulai
@@ -215,11 +308,15 @@ def bandingkan_wajah(file_1, file_2):
         "jumlah_wajah_2": jumlah_wajah_2,
         "gambar_kotak_1": gambar_kotak_1,
         "gambar_kotak_2": gambar_kotak_2,
-        "confidence": confidence,
+        "jarak_pca": jarak_pca,
         "skor_akhir": skor_mirip,
         "orang_sama": orang_sama,
-        "kategori": kategori_kemiripan(confidence),
+        "kategori": kategori_kemiripan(jarak_pca),
         "waktu_proses": waktu_proses,
+        "komponen_pca": hasil_pca["jumlah_komponen"],
+        "variance_pca": hasil_pca["explained_variance"],
+        "kompresi_1": kompresi_1,
+        "kompresi_2": kompresi_2,
     }
 
 
@@ -229,18 +326,29 @@ def buat_teks_laporan(hasil):
 
     if hasil["orang_sama"]:
         interpretasi = (
-            f"Nilai confidence sebesar {hasil['confidence']:.2f} berada di bawah atau sama dengan "
-            f"threshold {BATAS_BEDA}. Artinya, sistem menilai kedua wajah memiliki pola fitur "
-            f"yang cukup mirip berdasarkan metode LBPH."
+            f"Nilai jarak PCA sebesar {hasil['jarak_pca']:.2f} berada di bawah atau sama dengan "
+            f"threshold {BATAS_BEDA}. Artinya, setelah kedua wajah diproyeksikan ke ruang komponen utama, "
+            f"jarak fitur keduanya relatif kecil sehingga sistem menilai pola wajah cukup mirip."
         )
         kesimpulan = "Kemungkinan kedua gambar berasal dari ORANG YANG SAMA."
     else:
         interpretasi = (
-            f"Nilai confidence sebesar {hasil['confidence']:.2f} lebih besar dari threshold {BATAS_BEDA}. "
-            f"Artinya, sistem menilai kedua wajah memiliki perbedaan pola fitur yang cukup besar "
-            f"berdasarkan metode LBPH."
+            f"Nilai jarak PCA sebesar {hasil['jarak_pca']:.2f} lebih besar dari threshold {BATAS_BEDA}. "
+            f"Artinya, setelah kedua wajah diproyeksikan ke ruang komponen utama, jarak fitur keduanya "
+            f"cukup besar sehingga sistem menilai pola wajah berbeda."
         )
         kesimpulan = "Kemungkinan kedua gambar berasal dari ORANG YANG BERBEDA."
+
+    rasio_1 = hasil["kompresi_1"]["rasio_kompresi"]
+    rasio_2 = hasil["kompresi_2"]["rasio_kompresi"]
+    var_kemiripan = hasil["variance_pca"] * 100
+    var_kompresi_1 = hasil["kompresi_1"]["variance_kompresi"] * 100
+    var_kompresi_2 = hasil["kompresi_2"]["variance_kompresi"] * 100
+
+    psnr_1 = hasil["kompresi_1"]["psnr_rekonstruksi"]
+    psnr_2 = hasil["kompresi_2"]["psnr_rekonstruksi"]
+    teks_psnr_1 = "Tidak terbatas" if np.isinf(psnr_1) else f"{psnr_1:.2f} dB"
+    teks_psnr_2 = "Tidak terbatas" if np.isinf(psnr_2) else f"{psnr_2:.2f} dB"
 
     laporan = f"""
 ============================================================
@@ -277,17 +385,40 @@ def buat_teks_laporan(hasil):
   6. Memotong area wajah yang terdeteksi.
   7. Mengubah ukuran wajah menjadi {UKURAN_WAJAH[0]} x {UKURAN_WAJAH[1]} pixel.
   8. Melakukan histogram equalization agar pencahayaan lebih seimbang.
-  9. Membandingkan hasil preprocessing menggunakan metode LBPH.
+  9. Mengubah matriks wajah menjadi vektor fitur.
+ 10. Menggunakan PCA untuk ekstraksi fitur utama dan perbandingan kemiripan.
 
 ✓ Metode yang Digunakan
-  Haar Cascade Face Detection + LBPH Face Recognizer
-  LBPH = Local Binary Patterns Histogram
+  Haar Cascade Face Detection + PCA (Principal Component Analysis)
 
-✓ Threshold
+✓ Implementasi Aljabar Linear pada PCA
+  1. Citra wajah grayscale direpresentasikan sebagai matriks piksel.
+  2. Matriks wajah berukuran {UKURAN_WAJAH[0]} x {UKURAN_WAJAH[1]} diubah menjadi vektor berdimensi {UKURAN_WAJAH[0] * UKURAN_WAJAH[1]}.
+  3. Data wajah dikurangi nilai rata-rata agar berada pada pusat data.
+  4. PCA dihitung menggunakan SVD yang berkaitan dengan eigenvector dan eigenvalue dari matriks kovarians.
+  5. Wajah diproyeksikan ke ruang komponen utama.
+  6. Jarak antar fitur PCA digunakan untuk menentukan tingkat kemiripan wajah.
+
+✓ PCA untuk Kompresi Gambar
+  Jumlah komponen kompresi : {KOMPONEN_PCA_KOMPRESI}
+  Rasio kompresi Gambar 1 : {rasio_1:.2f}x
+  Rasio kompresi Gambar 2 : {rasio_2:.2f}x
+  Variansi dipertahankan Gambar 1 : {var_kompresi_1:.2f}%
+  Variansi dipertahankan Gambar 2 : {var_kompresi_2:.2f}%
+  PSNR rekonstruksi Gambar 1 : {teks_psnr_1}
+  PSNR rekonstruksi Gambar 2 : {teks_psnr_2}
+
+✓ Threshold Jarak PCA
   {BATAS_BEDA}
 
-✓ Confidence
-  {hasil['confidence']:.4f}
+✓ Jarak PCA
+  {hasil['jarak_pca']:.4f}
+
+✓ Komponen PCA untuk Kemiripan
+  {hasil['komponen_pca']} komponen utama
+
+✓ Variansi PCA untuk Kemiripan
+  {var_kemiripan:.2f}%
 
 ✓ Skor Kemiripan
   {hasil['skor_akhir']:.4f} dari 1.0000
@@ -303,8 +434,8 @@ def buat_teks_laporan(hasil):
 
 ============================================================
 Catatan:
-Semakin kecil nilai confidence LBPH, maka semakin mirip wajah
-ketika dibandingkan. Sebaliknya, semakin besar nilai confidence,
+Semakin kecil nilai jarak PCA, maka semakin mirip wajah
+ketika dibandingkan. Sebaliknya, semakin besar nilai jarak PCA,
 maka semakin besar perbedaan antara kedua wajah.
 ============================================================
 """
@@ -316,9 +447,9 @@ maka semakin besar perbedaan antara kedua wajah.
 # =========================
 
 st.markdown('<div class="sub-title">PROJECT AKHIR ALJABAR LINEAR - KELOMPOK 7</div>', unsafe_allow_html=True)
-st.markdown('<div class="main-title">Perbandingan Wajah Menggunakan LBPH</div>', unsafe_allow_html=True)
+st.markdown('<div class="main-title">Perbandingan Wajah Menggunakan PCA</div>', unsafe_allow_html=True)
 st.markdown(
-    '<div class="desc">Upload dua gambar wajah, lalu sistem akan mendeteksi wajah dan membandingkan tingkat kemiripannya.</div>',
+    '<div class="desc">Upload dua gambar wajah, lalu sistem akan mendeteksi wajah dan membandingkan tingkat kemiripannya dengan PCA.</div>',
     unsafe_allow_html=True,
 )
 
@@ -366,7 +497,7 @@ with tab_input:
             st.warning("Pilih Gambar 1 dan Gambar 2 terlebih dahulu.")
         else:
             try:
-                with st.spinner("Sedang memproses gambar dan membandingkan wajah..."):
+                with st.spinner("Sedang memproses gambar dan membandingkan wajah menggunakan PCA..."):
                     hasil = bandingkan_wajah(file_1, file_2)
                     laporan = buat_teks_laporan(hasil)
 
@@ -418,12 +549,12 @@ with tab_hasil:
             )
 
         m1, m2, m3, m4 = st.columns(4)
-        m1.metric("Confidence LBPH", f"{hasil['confidence']:.2f}")
+        m1.metric("Jarak PCA", f"{hasil['jarak_pca']:.2f}")
         m2.metric("Skor Mirip", f"{hasil['skor_akhir']:.2f}")
         m3.metric("Kategori", hasil["kategori"])
         m4.metric("Waktu Proses", f"{hasil['waktu_proses']:.4f} detik")
 
-        st.caption("Catatan: Semakin kecil nilai confidence LBPH, maka semakin mirip wajahnya.")
+        st.caption("Catatan: Semakin kecil nilai jarak PCA, maka semakin mirip wajahnya.")
 
 
 with tab_laporan:
@@ -440,7 +571,7 @@ with tab_laporan:
         st.download_button(
             label="Download Laporan TXT",
             data=st.session_state.laporan,
-            file_name="laporan_perbandingan_wajah.txt",
+            file_name="laporan_perbandingan_wajah_pca.txt",
             mime="text/plain",
             use_container_width=True,
         )

@@ -307,7 +307,7 @@ Aplikasi memiliki tiga tab utama:
 
 Tab ini digunakan untuk memilih dua gambar wajah yang akan dibandingkan.
 
-<img width="1600" height="810" alt="hasil" src="https://github.com/user-attachments/assets/1ddd12cd-d098-4ef7-9c72-0bd0abc4dda3" />
+<img width="1600" height="778" alt="input" src="https://github.com/user-attachments/assets/40e26d62-3c16-49c7-81f6-15a93328f127" />
 
 
 Fitur pada tab ini:
@@ -323,7 +323,7 @@ Fitur pada tab ini:
 
 Tab ini digunakan untuk menampilkan hasil visual dari proses deteksi wajah.
 
-<img width="1600" height="778" alt="input" src="https://github.com/user-attachments/assets/40e26d62-3c16-49c7-81f6-15a93328f127" />
+<img width="1600" height="810" alt="hasil" src="https://github.com/user-attachments/assets/1ddd12cd-d098-4ef7-9c72-0bd0abc4dda3" />
 
 
 Fitur pada tab ini:

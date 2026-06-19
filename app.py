@@ -15,7 +15,6 @@ KOMPONEN_PCA_KOMPRESI = 40
 
 st.set_page_config(
     page_title="Perbandingan Wajah PCA",
-    page_icon="🧠",
     layout="wide",
 )
 
